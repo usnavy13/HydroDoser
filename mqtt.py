@@ -1,36 +1,28 @@
-import paho.mqtt.client as mqtt #import the client1
+import paho.mqtt.client as mqtt #mqtt client
 import time
-import Adafruit_DHT as DHT #sensor module
 import struct #packing module
-import RPi.GPIO as GPIO
-
-sensor = DHT.DHT11 #sensor type
-DHT11 = 17 #sensor pin
-broker_address="test.mosquitto.org" #Mqtt broker address
 
 
-def getdata(): #this function retrieves, converts, then packs data for transport
-    global data
-    h, t = DHT.read_retry(sensor, DHT11) #read sensor
-    f = t*1.8+32 #converstion
-    data = struct.pack('ff', h, f) #packing for transport
+broker_address="test.mosquitto.org" #broker address
+topic = "home/grow/flower1"
 
-
-def publishdata(): #publishes the data to mqtt broker
-    client = mqtt.Client("P1") #create new instance
-    client.connect(broker_address) #connect to broker
-    client.subscribe("joe/tests") #this should be a specific topic to each sensor
-    client.publish("joe/tests",data) #publishes data to broker
-    time.sleep(2) #waits for new data
+def on_message(client, userdata, message):
+    data = message.payload #message from broker
+    datau = struct.unpack('fffff', data) #unpacking data from sensor
+    fr,hr,wtr,phr,ecr = datau #assigning temp and humidty values from data
+    f = round(fr,2)
+    h = round(hr,2)
+    wt = round(wtr,2)
+    ph = round(phr,4)
+    ec = round(ecr,2)
+    print('Air Temp = ',f,'*F Humidity = ',h,'%')
+    print('PH = ',ph,' EC = ',ec,' Water Temp = ',wt)
     
-def destroy(): #clean exit
-   time.sleep(0.01)
+
     
-if __name__ == '__main__':    
-    try:
-        while True:
-            getdata()
-            publishdata()            
-    except KeyboardInterrupt:
-        destroy()
-            
+      
+client = mqtt.Client("joe") #create new instance        
+client.on_message=on_message #run on message function when message recieved
+client.connect(broker_address) #connect to broker
+client.subscribe(topic)#subscribe to topic
+client.loop_forever() #run forever

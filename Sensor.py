@@ -1,19 +1,22 @@
 import io         # used to create file streams
-from io import open
+from io import open #read sensor data
 import fcntl      # used to access I2C parameters like addresses
 import time       # used for sleep delay and timestamps
 import string     # helps parse strings
-import Adafruit_DHT as DHT
-import RPi.GPIO as GPIO
-import glob
+import struct     # packs data for mqtt
+import Adafruit_DHT as DHT #sensor module
+import glob #pathing
+import paho.mqtt.client as mqtt #import the client1
 
-THsensor = DHT.DHT22
-THpin = 22
-base_dir = '/sys/bus/w1/devices/'
-device_folder = glob.glob(base_dir + '28*')[0]
-device_file = device_folder + '/w1_slave'
+THsensor = DHT.DHT22 #air sendor type
+THpin = 22 #air sensor pin
+base_dir = '/sys/bus/w1/devices/' #1w device location
+device_folder = glob.glob(base_dir + '28*')[0] #no idea
+device_file = device_folder + '/w1_slave' #no idea
+broker_address="test.mosquitto.org" #Mqtt broker address
+topic = "home/grow/flower1"
 
-class AtlasI2Cph:
+class AtlasI2Cph: #class code for ph sensor
     long_timeout = 1.5          # the timeout needed to query readings and calibrations
     short_timeout = .5          # timeout for regular commands
     default_bus = 1             # the default bus for I2C on the newer Raspberry Pis, certain older boards use bus 0
@@ -202,21 +205,31 @@ def read_temp():
         temp_c = float(temp_string) / 1000.0
         temp_f = temp_c * 9.0 / 5.0 + 32.0
         return temp_f
- 
+    
+def publishdata(): #publishes the data to mqtt broker
+    client = mqtt.Client("P1") #create new instance
+    client.connect(broker_address) #connect to broker
+    client.subscribe(topic) #this should be a specific topic to each sensor
+    client.publish(topic,data) #publishes data to broker
+    time.sleep(2) #waits for new data
 
 def main():
     phsense = AtlasI2Cph()
     ecsense = AtlasI2Cec()
        
     while True:
+                    global data
+                    phs = phsense.query("R")
                     h, t = DHT.read_retry(THsensor, THpin)
-                    f = t*1.8+32
-                    ph = phsense.query("R")
-                    time.sleep(2)
-                    ec = ecsense.query("R")
-                    time.sleep(2)
+                    f = t*9.0 / 5.0 + 32
+                    ecs = ecsense.query("R")
                     wt = read_temp()
-                    print (h,f,ph,ec,wt)
+                    ph = float(phs.rstrip('\x00'))
+                    ec = float(ecs.rstrip('\x00'))
+                    data = struct.pack('fffff',f,h,wt,ph,ec)
+                    publishdata()
+                    #print('Air Temp = ',f,'*F Humidity = ',h,'%')
+                    #print('PH = ',ph,' EC = ',ec,' Water Temp = ',wt)
                     
           
 if __name__ == '__main__':
