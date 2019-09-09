@@ -10,7 +10,6 @@ import Adafruit_DHT as DHT #sensor module
 import glob #pathing
 import paho.mqtt.client as mqtt #import the client1
 
-
 THsensor = DHT.DHT22 #air sendor type
 THpin = 22 #air sensor pin
 base_dir = '/sys/bus/w1/devices/' #1w device location
@@ -18,7 +17,6 @@ device_folder = glob.glob(base_dir + '28*')[0] #no idea
 device_file = device_folder + '/w1_slave' #no idea
 broker_address="test.mosquitto.org" #Mqtt broker address
 topic = "home/grow/flower1"
-clientid = 'hjkbgoya34'
 
 class AtlasI2Cph: #class code for ph sensor
     long_timeout = 1.5          # the timeout needed to query readings and calibrations
@@ -211,29 +209,31 @@ def read_temp():
         return temp_f
     
 def publishdata(): #publishes the data to mqtt broker
-    client = mqtt.Client(clientid) #create new instance
+    client = mqtt.Client("P1") #create new instance
     client.connect(broker_address) #connect to broker
     client.subscribe(topic) #this should be a specific topic to each sensor
-    client.publish(topic,getdata()) #publishes data to broker
+    client.publish(topic,data) #publishes data to broker
     time.sleep(2) #waits for new data
 
-def getdata():
+def main():
     phsense = AtlasI2Cph()
     ecsense = AtlasI2Cec()
-    phs = phsense.query("R")
-    h, t = DHT.read_retry(THsensor, THpin)
-    time.sleep(1)
-    f = t*9.0 / 5.0 + 32
-    ecs = ecsense.query("R")
-    wt = read_temp()
-    ph = float(phs.rstrip('\x00'))
-    ec = float(ecs.rstrip('\x00'))
-    data = struct.pack('fffff',f,h,wt,ph,ec)
-    return data
-
-def main():
+       
     while True:
-        publishdata()
+                    global data
+                    phs = phsense.query("R")
+                    time.sleep(2)
+                    h, t = DHT.read_retry(THsensor, THpin)
+                    f = t*9.0 / 5.0 + 32
+                    ecs = ecsense.query("R")
+                    wt = read_temp()
+                    ph = float(phs.rstrip('\x00'))
+                    ec = float(ecs.rstrip('\x00'))
+                    data = struct.pack('fffff',f,h,wt,ph,ec)
+                    print('Air Temp = ',f,'*F Humidity = ',h,'%')
+                    print('PH = ',ph,' EC = ',ec,' Water Temp = ',wt)
+                    
           
 if __name__ == '__main__':
     main()
+
