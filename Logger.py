@@ -8,6 +8,7 @@ import csv
 broker_address="test.mosquitto.org" #broker address
 topic = "home/grow/flower1"
 clientid = '8jofjn9!!'
+sensorlog = '/home/pi/Sensorlog.csv' #file location
 
 def on_message(client, userdata, message):
     data = message.payload #message from broker
@@ -18,8 +19,8 @@ def on_message(client, userdata, message):
     wt = round(wtr,2)
     ph = round(phr,4)
     ec = round(ecr,2)
-    row = datetime.now().strftime('%d/%m/%Y %H:%M:%S'),f,h,wt,ph,ec
-    with open('Sensorlog.csv', 'a') as f: #writes a new row in the sensor log
+    row = datetime.now().strftime('%m/%d/%Y %H%M:%S'),f,h,wt,ph,ec
+    with open(sensorlog, 'a') as f: #writes a new row in the sensor log
         w = csv.writer(f)
         w.writerow(row)
     #print('Air Temp = ',f,'*F Humidity = ',h,'%')
